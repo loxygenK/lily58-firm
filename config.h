@@ -44,3 +44,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define RGBLIGHT_ANIMATIONS
 #define RGBLIGHT_SLEEP
 */
+
+#undef OLED_FONT_H
+#define OLED_FONT_H "keymaps/loxygenK/font.c"
