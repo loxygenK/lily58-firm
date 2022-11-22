@@ -1,6 +1,9 @@
 #!/bin/env python
 import os
+import textwrap
 
+
+SCRIPT_DIR = os.path.dirname(__file__)
 
 class MonotoneBitmapImage:
     def __init__(self, width, height, pixels):
@@ -54,6 +57,18 @@ def pixels_to_qmk_matrix(image):
 
         return binary
 
+    if image.width % 6 != 0:
+        raise Exception(
+            "Image width must be dividable by 6 " +
+            f"(width = {image.width}, maybe round it to {(image.width // 6 + 1) * 6}?)"
+        )
+
+    if image.height % 8 != 0:
+        raise Exception(
+            "Image height must be dividable by 8 " +
+            f"(height = {image.height}, maybe round it to {(image.height // 8 + 8) * 6}?)"
+        )
+
     matrix = []
     for row in range(0, image.height, 8):
         for col in range(0, image.width, 6):
@@ -62,6 +77,31 @@ def pixels_to_qmk_matrix(image):
                 for y in range(8):
                     pixels_row.append(image.pixels[row + y][col + x])
                 matrix.append(bools_to_binary(pixels_row))
+
+    return matrix
+
+
+def pixels_to_bytes(image):
+    def bools_to_binary(bools):
+        binary = 0
+        for i, b in enumerate(bools):
+            binary += (1 if b else 0) << i
+
+        return binary
+
+    if image.width % 8 != 0:
+        raise Exception(
+            "Image width must be dividable by 8 " +
+            f"(width = {image.width}, maybe round it to {(image.width // 8 + 1) * 8}?)"
+        )
+
+    matrix = []
+    for row in range(image.height):
+        for col in range(0, image.width, 8):
+            pixels_row = []
+            for x in range(8):
+                pixels_row.append(image.pixels[row][col + x])
+            matrix.append(bools_to_binary(pixels_row))
 
     return matrix
 
@@ -82,12 +122,60 @@ def write_to_file(filename, string):
         f.write(string)
 
 
-# Export normal font
-image = MonotoneBitmapImage.load_from("./font.bmp")
-pixs = pixels_to_qmk_matrix(image)
-write_to_file("font.c", f'''
+print("--> Generating fonts")
+
+image = MonotoneBitmapImage.load_from(os.path.join(SCRIPT_DIR, "font.bmp"))
+fonts = pixels_to_qmk_matrix(image)
+write_to_file(os.path.join(SCRIPT_DIR, "font.c"), f'''
 #include "progmem.h"
 
-{export_qmk_matrix_to_c("const unsigned char font[] PROGMEM", pixs)}
+{export_qmk_matrix_to_c("const unsigned char font[] PROGMEM", fonts)}
 '''.strip())
 
+header = ""
+image_data_sources = ""
+for file in os.listdir(os.path.join(SCRIPT_DIR, "images")):
+    image_id = os.path.splitext(file)[0]
+    image = MonotoneBitmapImage.load_from(f"images/{file}")
+
+    print(f"--> Generating images ({file} {image.width}x{image.height})")
+
+    mat = pixels_to_bytes(image)
+    header += f"void render_{image_id.lower()}(int ox, int oy);\n"
+    image_data_sources += f'''
+void render_{image_id.lower()}(int ox, int oy) {{
+{textwrap.indent(export_qmk_matrix_to_c(f"static const char matrix[]", mat), " " * 4)}
+
+    render_pixels(ox, oy, {image.width}, {image.height}, matrix, {len(mat)});
+}}'''
+
+write_to_file(os.path.join(SCRIPT_DIR, "images.h"), f'''
+#ifndef F4N_IMAGE_H
+
+{header}
+#endif // F4N_IMAGE_H
+'''.strip())
+write_to_file(os.path.join(SCRIPT_DIR, "images.c"), f'''
+#include QMK_KEYBOARD_H
+#include "progmem.h"
+#include "./images.h"
+
+void render_pixels(int ox, int oy, int width, int height, const char mat[], size_t len) {{
+    int x = 0, y = 0;
+    for(int i = 0; i < len; i++) {{
+        for(int b = 0; b < 8; b++) {{
+            oled_write_pixel(ox + x, oy + y, mat[i] & (1 << b));
+            ++x;
+
+            if(x >= width) {{
+                x = 0; ++y;
+            }}
+        }}
+    }}
+}}
+
+{image_data_sources}
+'''.strip())
+
+
+# Export normal font

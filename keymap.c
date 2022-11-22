@@ -1,4 +1,5 @@
 #include QMK_KEYBOARD_H
+#include "assets/images.h"
 
 enum layer_number {
   _QWERTY = 0,
@@ -107,7 +108,7 @@ layer_state_t layer_state_set_user(layer_state_t state) {
 oled_rotation_t oled_init_user(oled_rotation_t rotation) {
   if (!is_keyboard_master())
     return OLED_ROTATION_180;  // flips the display 180 degrees if offhand
-  return rotation;
+  return OLED_ROTATION_270;
 }
 
 // When you add source files to SRC in rules.mk, you can use functions.
@@ -122,17 +123,17 @@ const char *read_keylogs(void);
 // void set_timelog(void);
 // const char *read_timelog(void);
 
+// user definitions
+void render_layer_status(void);
+
+
 bool oled_task_user(void) {
   if (is_keyboard_master()) {
-    // If you want to change the display of OLED, you need to change here
+    render_layer_status();
+  } else {
     oled_write_ln(read_layer_state(), false);
     oled_write_ln(read_keylog(), false);
     oled_write_ln(read_keylogs(), false);
-    //oled_write_ln(read_mode_icon(keymap_config.swap_lalt_lgui), false);
-    //oled_write_ln(read_host_led_state(), false);
-    //oled_write_ln(read_timelog(), false);
-  } else {
-    oled_write(read_logo(), false);
   }
     return false;
 }
@@ -146,4 +147,18 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     // set_timelog();
   }
   return true;
+}
+
+void render_layer_status() {
+    if(IS_LAYER_ON(_RAISE)) {
+      render_top_filled(0, 0);
+    } else {
+      render_top_outline(0, 0);
+    }
+
+    if(IS_LAYER_ON(_LOWER)) {
+      render_low_filled(0, 112);
+    } else {
+      render_low_outline(0, 112);
+    }
 }
