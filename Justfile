@@ -7,6 +7,9 @@ flash:
 	qmk flash
 	@echo "All done! Restore your USB connection to left microprocessor."
 
+image:
+	python3 scripts/img2c.py
+
 link-local:
 	bash "./scripts/link-local.sh"
 

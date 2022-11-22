@@ -4,6 +4,8 @@ import textwrap
 
 
 SCRIPT_DIR = os.path.dirname(__file__)
+ASSETS_DIR = os.path.realpath(os.path.join(SCRIPT_DIR, "../", "assets"))
+
 
 class MonotoneBitmapImage:
     def __init__(self, width, height, pixels):
@@ -124,9 +126,9 @@ def write_to_file(filename, string):
 
 print("--> Generating fonts")
 
-image = MonotoneBitmapImage.load_from(os.path.join(SCRIPT_DIR, "font.bmp"))
+image = MonotoneBitmapImage.load_from(os.path.join(ASSETS_DIR, "font.bmp"))
 fonts = pixels_to_qmk_matrix(image)
-write_to_file(os.path.join(SCRIPT_DIR, "font.c"), f'''
+write_to_file(os.path.join(ASSETS_DIR, "font.c"), f'''
 #include "progmem.h"
 
 {export_qmk_matrix_to_c("const unsigned char font[] PROGMEM", fonts)}
@@ -134,9 +136,9 @@ write_to_file(os.path.join(SCRIPT_DIR, "font.c"), f'''
 
 header = ""
 image_data_sources = ""
-for file in os.listdir(os.path.join(SCRIPT_DIR, "images")):
+for file in os.listdir(os.path.join(ASSETS_DIR, "images")):
     image_id = os.path.splitext(file)[0]
-    image = MonotoneBitmapImage.load_from(f"images/{file}")
+    image = MonotoneBitmapImage.load_from(os.path.join(ASSETS_DIR, f"images/{file}"))
 
     print(f"--> Generating images ({file} {image.width}x{image.height})")
 
@@ -149,13 +151,13 @@ void render_{image_id.lower()}(int ox, int oy) {{
     render_pixels(ox, oy, {image.width}, {image.height}, matrix, {len(mat)});
 }}'''
 
-write_to_file(os.path.join(SCRIPT_DIR, "images.h"), f'''
+write_to_file(os.path.join(ASSETS_DIR, "images.h"), f'''
 #ifndef F4N_IMAGE_H
 
 {header}
 #endif // F4N_IMAGE_H
 '''.strip())
-write_to_file(os.path.join(SCRIPT_DIR, "images.c"), f'''
+write_to_file(os.path.join(ASSETS_DIR, "images.c"), f'''
 #include QMK_KEYBOARD_H
 #include "progmem.h"
 #include "./images.h"
