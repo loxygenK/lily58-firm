@@ -1,4 +1,4 @@
-<img src="_readme/keyboard.jpeg" width="400" align="right">
+<img src="_readme/keyboard.jpeg" width="33%" align="right">
 
 # ️⌨️ lily58-firm
 The QMK firmware for [Lily58 Pro](https://kata0510.github.io/Lily58-Document/) by me.
