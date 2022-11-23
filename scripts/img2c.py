@@ -108,15 +108,27 @@ def pixels_to_bytes(image):
     return matrix
 
 
-def export_qmk_matrix_to_c(var_meta, qmk_mat):
-    c_sources = var_meta + " = {\n    "
+def bytes_to_c_array(qmk_mat, wrap):
+    c_sources = "{\n    "
     for i, mat in enumerate(qmk_mat):
         c_sources += f"{hex(mat)}, "
-        if i % 6 == 5:
+        if i % wrap == (wrap - 1):
             c_sources += "\n    "
     c_sources += "\n};"
 
     return c_sources
+
+
+def hydrate_template(template, argument):
+    basename, ext = template.rsplit(".", 2)
+    with open(os.path.join(SCRIPT_DIR, "templates", f"{basename}.template.{ext}"), mode="r") as f:
+        template_body = "".join(f.readlines()).strip()
+
+    for k, v in argument.items():
+        blacket = f"{{-{k}-}}"
+        template_body = template_body.replace(blacket, str(v))
+
+    return template_body
 
 
 def write_to_file(filename, string):
@@ -128,56 +140,49 @@ print("--> Generating fonts")
 
 image = MonotoneBitmapImage.load_from(os.path.join(ASSETS_DIR, "font.bmp"))
 fonts = pixels_to_qmk_matrix(image)
-write_to_file(os.path.join(ASSETS_DIR, "font.c"), f'''
-#include "progmem.h"
-
-{export_qmk_matrix_to_c("const unsigned char font[] PROGMEM", fonts)}
-'''.strip())
 
 header = ""
 image_data_sources = ""
 for file in os.listdir(os.path.join(ASSETS_DIR, "images")):
     image_id = os.path.splitext(file)[0]
-    image = MonotoneBitmapImage.load_from(os.path.join(ASSETS_DIR, f"images/{file}"))
+    image = MonotoneBitmapImage.load_from(
+        os.path.join(ASSETS_DIR, f"images/{file}")
+    )
 
     print(f"--> Generating images ({file} {image.width}x{image.height})")
 
     mat = pixels_to_bytes(image)
-    header += f"void render_{image_id.lower()}(int ox, int oy);\n"
-    image_data_sources += f'''
-void render_{image_id.lower()}(int ox, int oy) {{
-{textwrap.indent(export_qmk_matrix_to_c(f"static const char matrix[]", mat), " " * 4)}
+    matdef = bytes_to_c_array(mat, 6).splitlines(True)
 
-    render_pixels(ox, oy, {image.width}, {image.height}, matrix, {len(mat)});
-}}'''
+    fnsig = hydrate_template("images-fn-sig.c", {"name": image_id})
+    header += hydrate_template("images-fn.h", {"signature": fnsig})
+    image_data_sources += hydrate_template(
+        "images-fn.c", {
+            "signature": fnsig,
+            "matrix-definition": (
+                matdef[0] + textwrap.indent("".join(matdef[1:]), " " * 4)
+            ),
+            "width": image.width,
+            "height": image.height,
+            "len": len(mat)
+        }
+    ) + "\n\n"
 
-write_to_file(os.path.join(ASSETS_DIR, "images.h"), f'''
-#ifndef F4N_IMAGE_H
-
-{header}
-#endif // F4N_IMAGE_H
-'''.strip())
-write_to_file(os.path.join(ASSETS_DIR, "images.c"), f'''
-#include QMK_KEYBOARD_H
-#include "progmem.h"
-#include "./images.h"
-
-void render_pixels(int ox, int oy, int width, int height, const char mat[], size_t len) {{
-    int x = 0, y = 0;
-    for(int i = 0; i < len; i++) {{
-        for(int b = 0; b < 8; b++) {{
-            oled_write_pixel(ox + x, oy + y, mat[i] & (1 << b));
-            ++x;
-
-            if(x >= width) {{
-                x = 0; ++y;
-            }}
-        }}
-    }}
-}}
-
-{image_data_sources}
-'''.strip())
-
-
-# Export normal font
+write_to_file(
+    os.path.join(ASSETS_DIR, "font.c"),
+    hydrate_template("font.c", {
+        "font-matrix": bytes_to_c_array(fonts, 6)
+    })
+)
+write_to_file(
+    os.path.join(ASSETS_DIR, "images.h"),
+    hydrate_template("images.h", {
+        "header": header
+    })
+)
+write_to_file(
+    os.path.join(ASSETS_DIR, "images.c"),
+    hydrate_template("images.c", {
+        "image-data": image_data_sources
+    })
+)

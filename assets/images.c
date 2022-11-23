@@ -16,7 +16,6 @@ void render_pixels(int ox, int oy, int width, int height, const char mat[], size
     }
 }
 
-
 void render_top_outline(int ox, int oy) {
     static const char matrix[] = {
         0xff, 0xff, 0xff, 0xff, 0x1, 0x0, 
@@ -34,6 +33,7 @@ void render_top_outline(int ox, int oy) {
 
     render_pixels(ox, oy, 32, 16, matrix, 64);
 }
+
 void render_low_outline(int ox, int oy) {
     static const char matrix[] = {
         0xff, 0xff, 0xff, 0xff, 0x1, 0x0, 
@@ -51,6 +51,7 @@ void render_low_outline(int ox, int oy) {
 
     render_pixels(ox, oy, 32, 16, matrix, 64);
 }
+
 void render_top_filled(int ox, int oy) {
     static const char matrix[] = {
         0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
@@ -68,6 +69,7 @@ void render_top_filled(int ox, int oy) {
 
     render_pixels(ox, oy, 32, 16, matrix, 64);
 }
+
 void render_low_filled(int ox, int oy) {
     static const char matrix[] = {
         0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
@@ -85,3 +87,4 @@ void render_low_filled(int ox, int oy) {
 
     render_pixels(ox, oy, 32, 16, matrix, 64);
 }
+
